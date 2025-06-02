@@ -1,5 +1,8 @@
 #include "lvgl.h"
 
+// === Nouveau : Label global pour afficher la distance ===
+lv_obj_t *labelDistance;
+
 static void event_handler(lv_event_t * e)
 {
     lv_event_code_t code = lv_event_get_code(e);
@@ -14,7 +17,7 @@ static void event_handler(lv_event_t * e)
 
 void testLvgl()
 {
-  // Initialisations générales
+  // Boutons
   lv_obj_t * label;
 
   lv_obj_t * btn1 = lv_button_create(lv_screen_active());
@@ -35,42 +38,53 @@ void testLvgl()
   label = lv_label_create(btn2);
   lv_label_set_text(label, "Toggle");
   lv_obj_center(label);
+
+  // Label pour la distance 
+  labelDistance = lv_label_create(lv_screen_active());
+  lv_label_set_text(labelDistance, "Distance : -- cm");
+  lv_obj_align(labelDistance, LV_ALIGN_CENTER, 0, 100);
 }
 
 #ifdef ARDUINO
 
 #include "lvglDrivers.h"
 
-// à décommenter pour tester la démo
-// #include "demos/lv_demos.h"
-
 void mySetup()
 {
-  // à décommenter pour tester la démo
-  // lv_demo_widgets();
-
-  // Initialisations générales
+  Serial.begin(115200); // Initialisation du port série
+  Serial.println("Sharp");
   testLvgl();
+  xTaskCreate(myTask, "SharpTask", 2048, NULL, 1, NULL); // Lancement de la tâche pour la distance
 }
 
 void loop()
 {
-  // Inactif (pour mise en veille du processeur)
+  lv_timer_handler();
+  delay(5);
 }
 
 void myTask(void *pvParameters)
 {
-  // Init
-  TickType_t xLastWakeTime;
-  // Lecture du nombre de ticks quand la tâche débute
-  xLastWakeTime = xTaskGetTickCount();
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+
   while (1)
   {
-    // Loop
+    // === Lecture du capteur Sharp ===
+    int valeur = analogRead(A0);  // Capteur branché sur A0
+    float tension = valeur * (3.3 / 4095.0);  // Pour ESP32 (3.3V / 12 bits)
+    float distance = ; // Formule pour calculer la distance
 
-    // Endort la tâche pendant le temps restant par rapport au réveil,
-    // ici 200ms, donc la tâche s'effectue toutes les 200ms
-    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(200)); // toutes les 200 ms
+    // Affichage sur le port série
+    Serial.print("Distance : ");
+    Serial.print(distance);
+    Serial.println(" cm");
+
+    // Mise à jour du label LVGL
+    // char buffer[32];
+    // snprintf(buffer, sizeof(buffer), "Distance : %.1f cm", distance);
+    // lv_label_set_text(labelDistance, buffer);
+
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(200));
   }
 }
 
