@@ -66,23 +66,30 @@ void loop()
 void myTask(void *pvParameters)
 {
   TickType_t xLastWakeTime = xTaskGetTickCount();
+  int valeurs[10] = {0};  // Tableau pour stocker les 10 dernières valeurs
+  int index = 0;          // Index pour le tableau circulaire
+  int somme = 0;          // Somme des valeurs pour la moyenne
 
   while (1)
   {
-    // === Lecture du capteur Sharp ===
-    int valeur = analogRead(A0);  // Capteur branché sur A0
-    float tension = valeur * (3.3 / 4095.0);  // Pour ESP32 (3.3V / 12 bits)
-    float distance = ; // Formule pour calculer la distance
-
-    // Affichage sur le port série
+    int valeur = analogRead(A0);               // Lecture valeur brute capteur (0-1023)
+    
+    // Mise à jour du tableau circulaire
+    somme = somme - valeurs[index];            // Soustrait l'ancienne valeur
+    valeurs[index] = valeur;                   // Stocke la nouvelle valeur
+    somme = somme + valeur;                    // Ajoute la nouvelle valeur
+    index = (index + 1) % 10;                  // Avance l'index de manière circulaire
+    
+    // Calcul de la moyenne
+    float moyenne = somme / 10.0;
+    
+    // Calcul distance avec la moyenne
+    float distance = 40797 * pow(valeur, -1.284);
+    
+    delay(1000);
     Serial.print("Distance : ");
-    Serial.print(distance);
+    Serial.print(distance);                     // Affichage distance en cm
     Serial.println(" cm");
-
-    // Mise à jour du label LVGL
-    // char buffer[32];
-    // snprintf(buffer, sizeof(buffer), "Distance : %.1f cm", distance);
-    // lv_label_set_text(labelDistance, buffer);
 
     vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(200));
   }
