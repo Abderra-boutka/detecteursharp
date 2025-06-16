@@ -23,6 +23,7 @@ static void my_flush_cb(lv_display_t *display, const lv_area_t *area, uint8_t *p
             BSP_LCD_DrawPixel(x, y, *buf);
             buf++;
         }
+
     }
 
     // IMPORTANT!!!
@@ -86,3 +87,4 @@ void setup()
     Serial.println("Insufficient RAM");
     while (1);
 }
+
