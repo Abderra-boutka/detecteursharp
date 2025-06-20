@@ -132,55 +132,77 @@ void loop()
 
 void myTask(void *pvParameters)
 {
-  // Init
   TickType_t xLastWakeTime;
-  // Lecture du nombre de ticks quand la tâche débute
   xLastWakeTime = xTaskGetTickCount();
-  
+
+  bool toggle_color = false;      // Pour alterner  écran blanc / rouge
+  TickType_t last_toggle_time = 0;
+  const TickType_t toggle_interval = pdMS_TO_TICKS(500); // 500 ms
+
   while (1)
-  {
-    // Lecture du capteur
+  { // reception valeur analogique dans la variable valeur
     int valeur = analogRead(A0);
-    
-    // Mise à jour de la somme et du tableau circulaire
-    somme = somme - valeurs[current_read_index]; // Soustraire l'ancienne valeur
-    valeurs[current_read_index] = valeur;        // Ajouter la nouvelle valeur
-    somme = somme + valeur;         // Mettre à jour la somme
-    current_read_index = (current_read_index + 1) % 10;       // Passer à l'index suivant (circulaire)
 
-    // Calcul de la moyenne
+    // matrice pour stocker 10 mesures et en faire la moyenne pour améliorer la précision
+    somme = somme - valeurs[current_read_index];
+    valeurs[current_read_index] = valeur;
+    somme = somme + valeur;
+    current_read_index = (current_read_index + 1) % 10;
+
+    //calcule moyenne et en utilisant celleci calcul de la distance 
     float moyenne = somme / 10.0;
-
-    // Calcul de la distance avec la moyenne
     float distance = 40797 * pow(moyenne, -1.284);
-
-    // Limitation de la distance
     if (distance < 0) distance = 0;
     if (distance > 80) distance = 80;
 
-    // Mise à jour de l'affichage en fonction de la distance
-    if (green_rect_1 && green_rect_2) {
+    TickType_t current_time = xTaskGetTickCount();
+
+    if (distance < 10)
+    {
+      // Toutes les 500 ms, on inverse la couleur
+      if ((current_time - last_toggle_time) >= toggle_interval)
+      {
+        toggle_color = !toggle_color;
+        last_toggle_time = current_time;
+      }
+
+      if (toggle_color)
+        lv_obj_set_style_bg_color(lv_screen_active(), lv_color_make(0xFF, 0x00, 0x00), LV_PART_MAIN); // Rouge
+      else
+        lv_obj_set_style_bg_color(lv_screen_active(), lv_color_make(0xFF, 0xFF, 0xFF), LV_PART_MAIN); // Blanc
+
+      // Masquer tous les rectangles dans cette zone critique
+      lv_obj_set_style_opa(green_rect_1, LV_OPA_0, LV_PART_MAIN);
+      lv_obj_set_style_opa(green_rect_2, LV_OPA_0, LV_PART_MAIN);
+      lv_obj_set_style_opa(yellow_rect_1, LV_OPA_0, LV_PART_MAIN);
+      lv_obj_set_style_opa(yellow_rect_2, LV_OPA_0, LV_PART_MAIN);
+      lv_obj_set_style_opa(red_rect_1, LV_OPA_0, LV_PART_MAIN);
+      lv_obj_set_style_opa(red_rect_2, LV_OPA_0, LV_PART_MAIN);
+    }
+    else
+    {
+      // Fond blanc fixe quand distance >= 10 cm
+      lv_obj_set_style_bg_color(lv_screen_active(), lv_color_make(0xFF, 0xFF, 0xFF), LV_PART_MAIN);
+
+      // Afficher les rectangles selon la distance comme avant
       lv_obj_set_style_opa(green_rect_1, distance > 50 ? LV_OPA_COVER : LV_OPA_0, LV_PART_MAIN);
       lv_obj_set_style_opa(green_rect_2, distance > 50 ? LV_OPA_COVER : LV_OPA_0, LV_PART_MAIN);
-    }
-    
-    if (yellow_rect_1 && yellow_rect_2) {
+
       lv_obj_set_style_opa(yellow_rect_1, distance > 30 ? LV_OPA_COVER : LV_OPA_0, LV_PART_MAIN);
       lv_obj_set_style_opa(yellow_rect_2, distance > 30 ? LV_OPA_COVER : LV_OPA_0, LV_PART_MAIN);
-    }
-    
-    if (red_rect_1 && red_rect_2) {
+
       lv_obj_set_style_opa(red_rect_1, distance > 10 ? LV_OPA_COVER : LV_OPA_0, LV_PART_MAIN);
       lv_obj_set_style_opa(red_rect_2, distance > 10 ? LV_OPA_COVER : LV_OPA_0, LV_PART_MAIN);
+
+      // Reset toggle pour éviter couleur incohérente au prochain <10cm
+      toggle_color = false;
+      last_toggle_time = current_time;
     }
 
-    // Affichage de la distance
     Serial.print("Distance (moyenne sur 10 lectures): ");
     Serial.print(distance, 1);
     Serial.println(" cm");
 
-    // Endort la tâche pendant le temps restant par rapport au réveil
-    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(200)); // toutes les 200 ms
+    vTaskDelayUntil(&xLastWakeTime, pdMS_TO_TICKS(200));
   }
 }
-
